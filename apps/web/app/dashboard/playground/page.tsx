@@ -1,0 +1,383 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { useChat } from "ai/react";
+import { 
+  MessageSquare, Search, Mic, ArrowUp, Plus, Hash, User, 
+  Settings2, RotateCcw, Copy, ChevronDown, Terminal, Loader2, Check 
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+export default function PlaygroundPage() {
+  const [mode, setMode] = useState<"chat" | "search">("chat");
+  const [memorySettingTab, setMemorySettingTab] = useState<"agentic" | "autosearch">("agentic");
+  
+  // Advanced Settings State
+  const [useProfile, setUseProfile] = useState(true);
+  const [memoriesRetrieved, setMemoriesRetrieved] = useState(10);
+  const [matchStrictness, setMatchStrictness] = useState(0.40);
+  const [rerank, setRerank] = useState(false);
+  const [rewrite, setRewrite] = useState(false);
+  const [aggregate, setAggregate] = useState(false);
+
+  // Checkbox Settings
+  const [includeRelated, setIncludeRelated] = useState(true);
+  const [includeDocs, setIncludeDocs] = useState(true);
+  const [includeChunks, setIncludeChunks] = useState(false);
+  const [includeSummaries, setIncludeSummaries] = useState(false);
+  
+  // Model Selection
+  const [selectedModel, setSelectedModel] = useState("auto");
+
+  // Chat State
+  const { messages, input, setInput, handleInputChange, append, isLoading } = useChat({
+    api: "/api/chat",
+    body: { modelOverride: selectedModel }
+  });
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    
+    const userMessage = input;
+    setInput("");
+
+    // Fetch context using the strictness and retrieval count settings
+    let context = [];
+    try {
+      const res = await fetch("/api/memory?q=" + encodeURIComponent(userMessage) + "&threshold=" + matchStrictness + "&limit=" + memoriesRetrieved);
+      const data = await res.json();
+      if (data.results) {
+        context = data.results;
+      }
+    } catch (err) {
+      console.error("Context fetch failed", err);
+    }
+
+    append({
+      role: 'user',
+      content: userMessage
+    }, {
+      body: { context }
+    });
+  };
+
+  const suggestions = [
+    "What do you know about me?",
+    "What have I been working on?",
+    "What coffee do I prefer?"
+  ];
+
+  return (
+    <div className="h-full flex flex-col text-main font-sans">
+      {/* Header */}
+      <div className="mb-6 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-main mb-2 tracking-tight">Playground</h1>
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <p>Search your memories and chat with them.</p>
+            <a href="#" className="text-primary hover:text-primary-hover transition-colors flex items-center gap-1">
+              How search works ↗
+            </a>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-faint">Model:</span>
+          <select 
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="bg-surface border border-border rounded-xl px-4 py-2 text-sm text-main outline-none focus:border-primary transition-colors cursor-pointer"
+          >
+            <option value="auto">Auto-Fallback (High End)</option>
+            <option value="gemini">Gemini 1.5 Flash</option>
+            <option value="deepseek">DeepSeek V4 Flash (NVIDIA)</option>
+            <option value="openrouter">OpenRouter (Free)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main Layout */}
+      <div className="flex-1 flex gap-6 min-h-0 relative">
+        
+        {/* Center Canvas */}
+        <div className="flex-1 bg-bg border border-border rounded-2xl flex flex-col overflow-hidden relative shadow-inner">
+          
+          {/* Mode Toggle */}
+          <div className="absolute top-4 left-4 z-20 flex bg-surface rounded-lg p-1 border border-border">
+            <button 
+              onClick={() => setMode("chat")}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm transition-all ${mode === "chat" ? "bg-surface-hover text-main shadow-sm" : "text-faint hover:text-muted"}`}
+            >
+              <MessageSquare className="w-4 h-4" /> Chat
+            </button>
+            <button 
+              onClick={() => setMode("search")}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm transition-all ${mode === "search" ? "bg-surface-hover text-main shadow-sm" : "text-faint hover:text-muted"}`}
+            >
+              <Search className="w-4 h-4" /> Search
+            </button>
+          </div>
+
+          {/* Chat / Search Content */}
+          <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar relative z-10">
+            {messages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center -mt-16">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }} 
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden group border border-border"
+                >
+                  <div className="absolute inset-0 bg-primary/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="text-primary font-bold text-4xl leading-none z-10" style={{fontFamily: "monospace"}}>✱</div>
+                </motion.div>
+                <h2 className="text-2xl font-bold text-main mb-8">See what Grafz can do</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                  {/* Save to Memory Card */}
+                  <Link href="/dashboard/import" className="bg-surface border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all cursor-pointer group">
+                    <div className="w-10 h-10 rounded-xl bg-bg border border-border flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Plus className="w-5 h-5 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-main mb-1">Save to memory</h3>
+                    <p className="text-sm text-muted leading-relaxed">Ingest URLs, text, or files into your semantic graph for later retrieval.</p>
+                  </Link>
+
+                  {/* Search Memories Card */}
+                  <Link href="/dashboard/documents" className="bg-surface border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all cursor-pointer group">
+                    <div className="w-10 h-10 rounded-xl bg-bg border border-border flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Search className="w-5 h-5 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-main mb-1">Search memories</h3>
+                    <p className="text-sm text-muted leading-relaxed">Query your exact knowledge base using high-dimensional semantic search.</p>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 w-full max-w-3xl mx-auto space-y-6 pb-32 pt-12">
+                {messages.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-5 py-3 ${m.role === "user" ? "bg-surface-hover text-main border border-border shadow-md" : "bg-transparent text-main"}`}>
+                      {m.role === "user" ? (
+                        <div className="whitespace-pre-wrap">{m.content}</div>
+                      ) : (
+                        <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-surface prose-pre:border prose-pre:border-border prose-a:text-primary hover:prose-a:text-primary-hover prose-strong:text-main prose-headings:text-main text-sm">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-transparent text-main px-4 py-2 flex items-center gap-3">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span className="text-sm text-faint">Thinking...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Input Area anchored to bottom */}
+          <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-bg via-bg to-transparent z-20">
+            <div className="w-full max-w-3xl mx-auto">
+              {messages.length === 0 && (
+                <div className="flex flex-wrap gap-3 mb-4 justify-center">
+                  {suggestions.map((s, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => setInput(s)}
+                      className="px-4 py-2 rounded-full border border-border bg-surface text-xs text-muted hover:text-main hover:bg-surface-hover transition-colors flex items-center gap-2 shadow-sm"
+                    >
+                      <User className="w-3 h-3" />
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleChatSubmit} className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.05)] transition-all focus-within:border-primary/50 focus-within:bg-white/10 flex items-end relative">
+                <div className="p-3 pl-4 flex-shrink-0">
+                  <button type="button" className="text-faint hover:text-main transition-colors flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 text-xs border border-white/5 shadow-inner">
+                    <Plus className="w-3 h-3" /> 
+                    {selectedModel === "auto" ? "Auto-Fallback" : 
+                     selectedModel === "gemini" ? "Gemini 1.5" : 
+                     selectedModel === "deepseek" ? "DeepSeek V4" : "OpenRouter"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </div>
+                <textarea
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Ask something about your memories..."
+                  className="w-full bg-transparent p-4 text-main placeholder-faint resize-none outline-none min-h-[60px] max-h-32 pt-5 font-medium"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleChatSubmit(e);
+                    }
+                  }}
+                />
+                <div className="p-3 flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-faint flex items-center gap-1 hidden sm:flex"><Hash className="w-3 h-3"/> Compare without memory</span>
+                  <button type="button" className="p-2 text-faint hover:text-main transition-colors">
+                    <Mic className="w-4 h-4" />
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    className="p-2.5 bg-primary text-[#17191D] rounded-xl hover:bg-primary-hover hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                  >
+                    <ArrowUp className="w-4 h-4 font-bold" />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar - Memory Settings */}
+        <div className="w-[300px] flex-shrink-0 bg-surface border border-border rounded-2xl p-6 flex flex-col shadow-xl">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-semibold text-main">Memory settings</h2>
+            <button className="flex items-center gap-1 text-xs text-faint hover:text-muted transition-colors">
+              Reset <RotateCcw className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            
+            {/* Memory Mode Toggle */}
+            <div>
+              <label className="text-[10px] font-bold text-faint uppercase tracking-wider mb-3 block">Memory</label>
+              <div className="flex bg-bg rounded-lg p-1 border border-border">
+                <button 
+                  onClick={() => setMemorySettingTab("agentic")}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${memorySettingTab === "agentic" ? "bg-surface border border-border-strong text-main shadow-sm" : "text-muted hover:text-main"}`}
+                >
+                  Agentic
+                </button>
+                <button 
+                  onClick={() => setMemorySettingTab("autosearch")}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${memorySettingTab === "autosearch" ? "bg-surface border border-border-strong text-main shadow-sm" : "text-muted hover:text-main"}`}
+                >
+                  Auto-search
+                </button>
+              </div>
+            </div>
+
+            {/* General Settings */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Sources</span>
+                <span className="text-xs text-main bg-bg px-2 py-1 rounded border border-border flex items-center gap-1 cursor-pointer hover:bg-surface-hover">
+                  All sources <ChevronDown className="w-3 h-3" />
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Use your profile</span>
+                <button onClick={() => setUseProfile(!useProfile)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${useProfile ? 'bg-primary' : 'bg-bg border border-border'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${useProfile ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Sliders / Number Inputs */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Memories retrieved</span>
+                <div className="flex items-center gap-2 bg-bg border border-border rounded px-2 py-1">
+                  <button onClick={() => setMemoriesRetrieved(Math.max(1, memoriesRetrieved - 1))} className="text-faint hover:text-main">-</button>
+                  <span className="text-xs text-main w-6 text-center">{memoriesRetrieved}</span>
+                  <button onClick={() => setMemoriesRetrieved(memoriesRetrieved + 1)} className="text-faint hover:text-main">+</button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Match strictness</span>
+                <div className="flex items-center gap-2 bg-bg border border-border rounded px-2 py-1">
+                  <button onClick={() => setMatchStrictness(Math.max(0, matchStrictness - 0.1))} className="text-faint hover:text-main">-</button>
+                  <span className="text-xs text-main w-8 text-center">{matchStrictness.toFixed(2)}</span>
+                  <button onClick={() => setMatchStrictness(Math.min(1, matchStrictness + 0.1))} className="text-faint hover:text-main">+</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Toggles */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Rerank results</span>
+                <button onClick={() => setRerank(!rerank)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${rerank ? 'bg-primary' : 'bg-bg border border-border'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${rerank ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Rewrite query</span>
+                <button onClick={() => setRewrite(!rewrite)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${rewrite ? 'bg-primary' : 'bg-bg border border-border'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${rewrite ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted">Aggregate results</span>
+                <button onClick={() => setAggregate(!aggregate)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${aggregate ? 'bg-primary' : 'bg-bg border border-border'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${aggregate ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Checkboxes */}
+            <div className="pt-4 border-t border-border">
+              <label className="text-[10px] font-bold text-faint uppercase tracking-wider mb-3 block">Include in results</label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="checkbox" checked={includeRelated} onChange={() => setIncludeRelated(!includeRelated)} className="hidden" />
+                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeRelated ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
+                    {includeRelated && <Check className="w-3 h-3 text-bg" />}
+                  </div>
+                  <span className="text-sm text-muted group-hover:text-main transition-colors">Related</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="checkbox" checked={includeDocs} onChange={() => setIncludeDocs(!includeDocs)} className="hidden" />
+                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeDocs ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
+                    {includeDocs && <Check className="w-3 h-3 text-bg" />}
+                  </div>
+                  <span className="text-sm text-muted group-hover:text-main transition-colors">Documents</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="checkbox" checked={includeChunks} onChange={() => setIncludeChunks(!includeChunks)} className="hidden" />
+                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeChunks ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
+                    {includeChunks && <Check className="w-3 h-3 text-bg" />}
+                  </div>
+                  <span className="text-sm text-muted group-hover:text-main transition-colors">Chunks</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="checkbox" checked={includeSummaries} onChange={() => setIncludeSummaries(!includeSummaries)} className="hidden" />
+                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeSummaries ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
+                    {includeSummaries && <Check className="w-3 h-3 text-bg" />}
+                  </div>
+                  <span className="text-sm text-muted group-hover:text-main transition-colors">Summaries</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+          
+          <div className="mt-auto pt-6 flex justify-between items-center text-xs text-faint">
+            <span>REQUEST</span>
+            <button className="flex items-center gap-1 hover:text-muted transition-colors">
+              Copy <Copy className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

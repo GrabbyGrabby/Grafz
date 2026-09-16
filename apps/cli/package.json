@@ -1,0 +1,17 @@
+{
+  "name": "grafz-cli",
+  "version": "1.0.0",
+  "description": "Grafz AI memory plugin installer",
+  "main": "index.js",
+  "bin": {
+    "grafz": "./bin/grafz.js"
+  },
+  "scripts": {
+    "start": "node ./bin/grafz.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^10.0.0",
+    "inquirer": "^8.2.5"
+  }
+}
