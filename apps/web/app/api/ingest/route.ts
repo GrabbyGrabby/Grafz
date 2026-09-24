@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { pipeline, env } from "@xenova/transformers";
+import { PrivyClient } from "@privy-io/server-auth";
 
 env.allowLocalModels = false;
 
-// Shared Singleton for Embeddings (to keep the API lightning fast in Serverless)
+const privy = new PrivyClient(
+  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
+  process.env.PRIVY_APP_SECRET!
+);
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 class PipelineSingleton {
   static task = "feature-extraction";
   static model = "Xenova/all-MiniLM-L6-v2";
@@ -26,12 +35,25 @@ async function getEmbedding(text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Basic API Key Authentication (Extremely simple for Omnichannel access)
-    const authHeader = req.headers.get("Authorization");
-    // TODO: Re-enable auth once NextAuth is fully integrated
-    // if (authHeader !== `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`) {
-    //   return NextResponse.json({ error: "Unauthorized. Invalid API Key." }, { status: 401 });
-    // }
+    let userId;
+    try {
+      const authHeader = req.headers.get("Authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      if (!token) {
+        const cookieToken = req.cookies.get("privy-token")?.value;
+        if (!cookieToken) throw new Error("No token");
+        const verifiedClaims = await privy.verifyAuthToken(cookieToken);
+        userId = verifiedClaims.userId;
+      } else {
+        const verifiedClaims = await privy.verifyAuthToken(token);
+        userId = verifiedClaims.userId;
+      }
+    } catch (e) {
+      return NextResponse.json({ error: "Unauthorized. Invalid Token." }, { status: 401 });
+    }
+
+    console.log("================= INGESTION TRIGGERED ======================");
+    console.log("Extracted Privy User ID:", userId);
 
     const { content, source, tags = [] } = await req.json();
 
@@ -39,26 +61,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
-    // 1. Vectorize Content locally (Free, no OpenAI API costs)
     const embedding = await getEmbedding(content);
-    
-    // Convert to 1536 dim to match standard pgvector size in db
     const paddedEmbedding = [...embedding, ...new Array(1536 - embedding.length).fill(0)];
-
-    // 2. Store in Supabase
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
+    const payload = {
+      content,
+      metadata: { source, tags },
+      embedding: paddedEmbedding,
+      user_id: userId,
+    };
+    
+    console.log("Inserting Payload:", { ...payload, embedding: "[VECTOR BLOB HIDDEN]" });
+
     const { data, error } = await supabase
       .from("memories")
-      .insert([
-        {
-          content,
-          metadata: { source, tags },
-          embedding: paddedEmbedding,
-        },
-      ])
+      .insert([payload])
       .select()
       .single();
 

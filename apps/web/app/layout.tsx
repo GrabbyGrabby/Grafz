@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import Providers from "./providers";
 
 const poppins = Poppins({ 
-  weight: ['300', '400', '500', '600', '700'],
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: '--font-poppins'
 });
 
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${poppins.variable} font-sans bg-bg text-main antialiased`}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

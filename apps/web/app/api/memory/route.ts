@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "../../../lib/supabase/server";
 import { pipeline, env } from "@xenova/transformers";
+import { PrivyClient } from "@privy-io/server-auth";
+import { createClient } from "@supabase/supabase-js";
 
 env.allowLocalModels = false;
+
+const privy = new PrivyClient(
+  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
+  process.env.PRIVY_APP_SECRET!
+);
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 class PipelineSingleton {
   static task = "feature-extraction";
@@ -31,11 +42,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
-    // 1. Authenticate the User
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // 1. Authenticate the User with Privy
+    let userId;
+    try {
+      const authHeader = req.headers.get("authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      if (!token) {
+        // Fallback to checking the session cookie (privy-token)
+        const cookieToken = req.cookies.get("privy-token")?.value;
+        if (!cookieToken) throw new Error("No token");
+        const verifiedClaims = await privy.verifyAuthToken(cookieToken);
+        userId = verifiedClaims.userId;
+      } else {
+        const verifiedClaims = await privy.verifyAuthToken(token);
+        userId = verifiedClaims.userId;
+      }
+    } catch (e) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
 
@@ -52,7 +74,7 @@ export async function POST(req: NextRequest) {
           content,
           metadata: metadata || {},
           embedding: paddedEmbedding, // 1536 dimensions
-          user_id: user.id, // Store for this specific user
+          user_id: userId, // Store Privy ID
         },
       ])
       .select()
@@ -75,11 +97,21 @@ export async function GET(req: NextRequest) {
   const query = searchParams.get("q");
 
   try {
-    // 1. Authenticate the User
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // 1. Authenticate the User with Privy
+    let userId;
+    try {
+      const authHeader = req.headers.get("authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      if (!token) {
+        const cookieToken = req.cookies.get("privy-token")?.value;
+        if (!cookieToken) throw new Error("No token");
+        const verifiedClaims = await privy.verifyAuthToken(cookieToken);
+        userId = verifiedClaims.userId;
+      } else {
+        const verifiedClaims = await privy.verifyAuthToken(token);
+        userId = verifiedClaims.userId;
+      }
+    } catch (e) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
 
@@ -88,6 +120,7 @@ export async function GET(req: NextRequest) {
       const { data, error } = await supabase
         .from("memories")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
         
@@ -99,11 +132,12 @@ export async function GET(req: NextRequest) {
     const embedding = await getEmbedding(query);
     const paddedEmbedding = [...embedding, ...new Array(1536 - embedding.length).fill(0)];
 
-    // By using the authenticated client, RLS (if enabled) will automatically filter out other users' memories.
+    // We must pass match_user_id to the RPC so it filters internally, since we bypass RLS with Service Key
     const { data, error } = await supabase.rpc("match_memories", {
       query_embedding: paddedEmbedding,
       match_threshold: 0.1,
       match_count: 5,
+      match_user_id: userId
     });
 
     if (error) {

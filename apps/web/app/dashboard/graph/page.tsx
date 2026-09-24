@@ -3,15 +3,20 @@
 import React, { useEffect, useState } from "react";
 import { Network, Hexagon, Circle, FileText, ChevronDown, Check } from "lucide-react";
 import { motion } from "framer-motion";
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function MemoryGraphPage() {
+  const { getAccessToken } = usePrivy();
   const [documents, setDocuments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDocuments() {
       try {
-        const res = await fetch("/api/memory");
+        const token = await getAccessToken();
+        const res = await fetch("/api/memory", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const data = await res.json();
         if (data.results) {
           setDocuments(data.results);
@@ -198,8 +203,8 @@ export default function MemoryGraphPage() {
                          }}
                        >
                          <Hexagon className={`w-8 h-8 ${colorClass} drop-shadow-lg group-hover:scale-125 transition-transform`} />
-                         <div className="absolute top-10 w-48 bg-surface border border-border-strong rounded-lg p-3 text-xs text-main opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl z-30">
-                           {doc.content}
+                         <div className="absolute top-10 w-48 bg-surface border border-border-strong rounded-lg p-3 text-xs text-main opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl z-30 overflow-hidden line-clamp-3">
+                           {typeof doc.content === 'string' ? doc.content : JSON.stringify(doc.content || "")}
                          </div>
                        </motion.div>
                      );

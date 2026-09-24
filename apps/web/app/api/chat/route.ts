@@ -1,26 +1,12 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText } from "ai";
 
-const nvidia = createOpenAI({
-  baseURL: "https://integrate.api.nvidia.com/v1",
-  apiKey: process.env.NVIDIA_NIM_API_KEY || "",
-});
-
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY || "",
-  headers: {
-    "HTTP-Referer": "http://localhost:3000",
-    "X-Title": "Grafz Memory Assistant",
-  }
-});
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
-});
-
 export async function POST(req: Request) {
+  // Initialize inside POST to ensure env variables are loaded
+  const google = createGoogleGenerativeAI({
+    apiKey: process.env.GEMINI_API_KEY || "",
+  });
+
   const { messages, context, modelOverride } = await req.json();
   
   console.log(`[CHAT API] Received ${messages.length} messages. Context array length: ${context ? context.length : 0}. Model Override: ${modelOverride}`);
@@ -35,16 +21,22 @@ FORMATTING RULE: You MUST arrange your responses in well-structured, modern bull
   if (context && context.length > 0) {
     const lastMessage = messages[messages.length - 1];
     if (lastMessage && lastMessage.role === "user") {
-      const contextString = context.map((c: any) => `- ${c.content}`).join("\n");
-      lastMessage.content = `[RETRIEVED MEMORIES FROM DATABASE]:\n${contextString}\n\n[USER QUESTION]:\n${lastMessage.content}`;
+      const contextString = context.map((c: any) => `- ${c.content || JSON.stringify(c)}`).join("\n");
+      const enhancedContent = `[RETRIEVED MEMORIES FROM DATABASE]:\n${contextString}\n\n[USER QUESTION]:\n${lastMessage.content}`;
+      lastMessage.content = enhancedContent;
+      // Also mutate parts if they exist, to ensure Vercel AI SDK uses the enhanced prompt
+      if (lastMessage.parts && lastMessage.parts.length > 0 && lastMessage.parts[0].type === "text") {
+         lastMessage.parts[0].text = enhancedContent;
+      }
+      console.log("MUTATED LAST MESSAGE:", lastMessage.content);
     }
   }
 
   // Base models map
   const availableModels = [
-    { id: "openrouter", name: "OpenRouter Auto", model: openrouter("openrouter/auto") },
-    { id: "deepseek", name: "DeepSeek V4", model: openrouter("deepseek/deepseek-v4-flash-0731") },
-    { id: "gemini", name: "Gemini 1.5 Flash", model: google("gemini-1.5-flash") }
+    { id: "gemini-free", name: "Gemini 3.5 Flash", model: google("models/gemini-3.5-flash") },
+    { id: "gemini-pro", name: "Gemini 3.5 Pro", model: google("models/gemini-3.5-pro") },
+    { id: "gemini-2-flash", name: "Gemini 2.5 Flash", model: google("models/gemini-2.5-flash") }
   ];
 
   // If a specific model is selected (not auto), filter the list to ONLY try that model
@@ -57,7 +49,7 @@ FORMATTING RULE: You MUST arrange your responses in well-structured, modern bull
   for (const { name, model } of modelsToTry) {
     try {
       console.log(`Attempting generation with ${name}...`);
-      const result = streamText({
+      const result = await streamText({
         model: model as any,
         system: systemPrompt,
         messages,

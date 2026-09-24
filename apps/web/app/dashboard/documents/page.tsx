@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { Search, Tag, Filter, Download, FileText, ChevronDown, Clock, Layers, Hash } from "lucide-react";
 import { motion } from "framer-motion";
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function DocumentsPage() {
+  const { getAccessToken } = usePrivy();
   const [documents, setDocuments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -12,7 +14,12 @@ export default function DocumentsPage() {
   useEffect(() => {
     async function fetchDocuments() {
       try {
-        const res = await fetch("/api/memory");
+        const token = await getAccessToken();
+        const res = await fetch("/api/memory", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
         const data = await res.json();
         if (data.results) {
           setDocuments(data.results);
@@ -104,7 +111,7 @@ export default function DocumentsPage() {
               {documents.map((doc, i) => (
                 <div key={i} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 items-center hover:bg-white/[0.02] transition-colors cursor-pointer">
                   <div className="font-medium text-sm text-main truncate pr-4">
-                    {doc.content.substring(0, 60)}{doc.content.length > 60 ? "..." : ""}
+                    {typeof doc.content === 'string' ? (doc.content.substring(0, 60) + (doc.content.length > 60 ? "..." : "")) : JSON.stringify(doc.content || "")}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-1 bg-white/5 rounded text-xs text-muted border border-border">default</span>

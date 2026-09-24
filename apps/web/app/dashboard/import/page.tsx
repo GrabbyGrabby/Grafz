@@ -3,8 +3,10 @@
 import React, { useState } from "react";
 import { Upload, Link as LinkIcon, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function ImportPage() {
+  const { getAccessToken } = usePrivy();
   const [content, setContent] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -18,9 +20,13 @@ export default function ImportPage() {
     setSuccessMessage("");
 
     try {
+      const token = await getAccessToken();
       const res = await fetch("/api/ingest", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           content,
           metadata: {

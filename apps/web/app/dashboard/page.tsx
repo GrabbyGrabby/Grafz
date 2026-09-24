@@ -170,7 +170,7 @@ export default function DashboardOverviewPage() {
           {[
             { title: "Live Demo", icon: Play },
             { title: "Playground", icon: Terminal },
-            { title: "Documentation", icon: BookOpen }
+            { title: "API Reference", icon: BookOpen }
           ].map((item, i) => (
             <div key={i} className="bg-surface border border-border rounded-xl p-4 flex justify-between items-center cursor-pointer hover:bg-surface-hover hover:border-border-strong transition-all group">
               <div className="flex items-center gap-3">

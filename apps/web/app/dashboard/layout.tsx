@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   BrainCircuit, Search, Plus, Home, Terminal, FileText, 
   Tags, Share2, Activity, Users, Plug, Download, HelpCircle, FileJson, 
@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { createClient } from "@/lib/supabase/client";
+import { usePrivy } from "@privy-io/react-auth";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,20 +41,24 @@ const developerItems = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { ready, authenticated, user, logout } = usePrivy();
+  const router = useRouter();
   const pathname = usePathname();
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) {
-        setUserEmail(user.email);
-      }
-    });
-  }, []);
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.push("/login");
+    }
+  }, [ready, authenticated, router]);
+
+  if (!ready || !authenticated) {
+    return <div className="min-h-screen bg-bg" />;
+  }
+
+  const userEmail = user?.email?.address || user?.google?.email || "User";
 
   const handleCreateApiKey = () => {
     // Generate a dummy API key for the UI
@@ -64,8 +68,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="flex h-screen bg-bg text-muted overflow-hidden font-sans">
-      
+    <div className="flex h-screen w-full bg-bg text-main overflow-hidden relative">
+      {/* Animated Background Orbs for Glass Effect */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px] pointer-events-none animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] rounded-full bg-blue-500/5 blur-[100px] pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
+
       {/* API Key Modal */}
       <AnimatePresence>
         {showApiKeyModal && (
@@ -106,23 +113,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar */}
       <motion.aside 
         initial={false}
-        animate={{ width: isSidebarOpen ? 260 : 72 }}
-        className="flex-shrink-0 flex flex-col border-r border-border bg-bg relative z-20 overflow-hidden"
+        animate={{ width: isSidebarOpen ? 240 : 64 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="flex-shrink-0 flex flex-col relative z-20 border-r border-white/5 bg-black/40 backdrop-blur-xl shadow-2xl"
       >
-        {/* Header */}
-        <div className="p-4 flex items-center gap-3 text-main whitespace-nowrap h-16">
-          <div className="w-8 h-8 rounded-lg bg-primary flex-shrink-0 flex items-center justify-center text-[#17191D]">
-            <BrainCircuit className="w-5 h-5" />
+        {/* Logo Area */}
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+            <BrainCircuit className="w-5 h-5 text-[#17191D]" />
           </div>
           <AnimatePresence>
             {isSidebarOpen && (
               <motion.span 
-                initial={{ opacity: 0, w: 0 }}
-                animate={{ opacity: 1, w: "auto" }}
-                exit={{ opacity: 0, w: 0 }}
-                className="font-bold tracking-tight text-xl"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                className="font-bold text-lg tracking-tight whitespace-nowrap text-main"
               >
-                grafz™
+                Grafz
               </motion.span>
             )}
           </AnimatePresence>
@@ -262,12 +270,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
             {isSidebarOpen && (
                <button 
-                 onClick={async () => {
-                   const { createClient } = await import('@/lib/supabase/client');
-                   const supabase = createClient();
-                   await supabase.auth.signOut();
-                   window.location.href = '/login';
-                 }}
+                 onClick={() => logout()}
                  className="text-faint hover:text-red-400 transition-colors ml-auto p-1"
                  title="Sign out"
                >
@@ -288,24 +291,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </motion.aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden flex flex-col relative">
+      <main className="flex-1 overflow-hidden flex flex-col relative z-10">
         {/* Topbar */}
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 border-b border-border z-10 relative bg-bg/80 backdrop-blur-md">
-          <div className="flex items-center gap-2 bg-surface px-3 py-1.5 rounded-full border border-border text-sm cursor-pointer hover:bg-surface-hover transition-colors">
-            <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center text-[10px] text-[#17191D] font-bold">G</div>
-            <span className="text-main font-medium">Grabby</span>
-            <span className="text-[10px] uppercase bg-bg border border-border px-1.5 py-0.5 rounded text-faint">Free</span>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 border-b border-white/5 z-10 relative bg-black/40 backdrop-blur-xl shadow-sm">
+          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 text-sm cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="w-5 h-5 bg-primary rounded-md flex items-center justify-center text-[10px] text-black font-bold shadow-lg">G</div>
+            <span className="text-main font-semibold tracking-wide">Grafz</span>
+            <span className="text-[9px] uppercase bg-white/10 px-1.5 py-0.5 rounded text-muted font-bold tracking-widest ml-1">Free</span>
           </div>
-          <div className="flex items-center gap-4 text-sm font-medium">
+          <div className="flex items-center gap-6 text-sm font-medium">
             <button className="text-muted hover:text-main transition-colors">Help</button>
-            <button className="text-muted hover:text-main transition-colors">Docs ↗</button>
+            <button className="text-muted hover:text-main transition-colors flex items-center gap-1">Support</button>
           </div>
         </header>
 
         {/* Page Content Container */}
-        <div className="flex-1 overflow-auto p-4 md:p-6 z-0">
-          <div className="bg-surface border border-border rounded-[2rem] min-h-full p-8 md:p-12 relative overflow-hidden shadow-2xl">
-            {children}
+        <div className="flex-1 overflow-auto p-4 md:p-6 z-0 relative">
+          <div className="bg-black/20 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] min-h-full p-8 md:p-12 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-50 pointer-events-none" />
+            <div className="relative z-10 h-full">
+              {children}
+            </div>
           </div>
         </div>
       </main>

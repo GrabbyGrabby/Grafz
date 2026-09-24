@@ -10,8 +10,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function PlaygroundPage() {
+  const { getAccessToken } = usePrivy();
   const [mode, setMode] = useState<"chat" | "search">("chat");
   const [memorySettingTab, setMemorySettingTab] = useState<"agentic" | "autosearch">("agentic");
   
@@ -30,7 +32,12 @@ export default function PlaygroundPage() {
   const [includeSummaries, setIncludeSummaries] = useState(false);
   
   // Model Selection
-  const [selectedModel, setSelectedModel] = useState("auto");
+  const [selectedModel, setSelectedModel] = useState("gemini-free"); // Default to gemini-free
+  const models = [
+    { id: "gemini-free", name: "Gemini 3.5 Flash" },
+    { id: "gemini-pro", name: "Gemini 3.5 Pro" },
+    { id: "gemini-2-flash", name: "Gemini 2.5 Flash" }
+  ];
 
   // Chat State
   const { messages, input, setInput, handleInputChange, append, isLoading } = useChat({
@@ -48,7 +55,10 @@ export default function PlaygroundPage() {
     // Fetch context using the strictness and retrieval count settings
     let context = [];
     try {
-      const res = await fetch("/api/memory?q=" + encodeURIComponent(userMessage) + "&threshold=" + matchStrictness + "&limit=" + memoriesRetrieved);
+      const token = await getAccessToken();
+      const res = await fetch("/api/memory?q=" + encodeURIComponent(userMessage) + "&threshold=" + matchStrictness + "&limit=" + memoriesRetrieved, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.results) {
         context = data.results;
@@ -86,15 +96,14 @@ export default function PlaygroundPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-faint">Model:</span>
-          <select 
+          <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             className="bg-surface border border-border rounded-xl px-4 py-2 text-sm text-main outline-none focus:border-primary transition-colors cursor-pointer"
           >
-            <option value="auto">Auto-Fallback (High End)</option>
-            <option value="gemini">Gemini 1.5 Flash</option>
-            <option value="deepseek">DeepSeek V4 Flash (NVIDIA)</option>
-            <option value="openrouter">OpenRouter (Free)</option>
+            <option value="gemini-free">Gemini 3.5 Flash</option>
+            <option value="gemini-pro">Gemini 3.5 Pro</option>
+            <option value="gemini-2-flash">Gemini 2.5 Flash</option>
           </select>
         </div>
       </div>
@@ -124,7 +133,7 @@ export default function PlaygroundPage() {
           {/* Chat / Search Content */}
           <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar relative z-10">
             {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center -mt-16">
+              <div className="flex-1 flex flex-col items-center justify-center -mt-16 pb-40">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }} 
                   animate={{ opacity: 1, scale: 1 }}
@@ -202,21 +211,21 @@ export default function PlaygroundPage() {
                 </div>
               )}
 
-              <form onSubmit={handleChatSubmit} className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.05)] transition-all focus-within:border-primary/50 focus-within:bg-white/10 flex items-end relative">
+              <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/80 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex items-end relative group">
                 <div className="p-3 pl-4 flex-shrink-0">
-                  <button type="button" className="text-faint hover:text-main transition-colors flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 text-xs border border-white/5 shadow-inner">
+                  <button type="button" className="text-faint group-focus-within:text-muted hover:text-main transition-colors flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 text-[11px] font-semibold tracking-wide border border-white/5 shadow-inner">
                     <Plus className="w-3 h-3" /> 
-                    {selectedModel === "auto" ? "Auto-Fallback" : 
-                     selectedModel === "gemini" ? "Gemini 1.5" : 
-                     selectedModel === "deepseek" ? "DeepSeek V4" : "OpenRouter"}
+                    {selectedModel === "gemini-free" ? "Gemini 1.5 (Free)" : 
+                     selectedModel === "llama-free" ? "Llama 3.1 (Free)" :
+                     selectedModel === "mistral-free" ? "Mistral (Free)" : "Model"}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </div>
                 <textarea
                   value={input}
                   onChange={handleInputChange}
-                  placeholder="Ask something about your memories..."
-                  className="w-full bg-transparent p-4 text-main placeholder-faint resize-none outline-none min-h-[60px] max-h-32 pt-5 font-medium"
+                  placeholder="Ask anything about your memories..."
+                  className="w-full bg-transparent p-4 text-main placeholder-faint resize-none outline-none min-h-[60px] max-h-[200px] pt-[22px] font-medium text-[15px] leading-relaxed transition-colors"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -225,19 +234,35 @@ export default function PlaygroundPage() {
                   }}
                 />
                 <div className="p-3 flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs text-faint flex items-center gap-1 hidden sm:flex"><Hash className="w-3 h-3"/> Compare without memory</span>
-                  <button type="button" className="p-2 text-faint hover:text-main transition-colors">
+                  <span className="text-[11px] font-semibold text-faint flex items-center gap-1 hidden sm:flex tracking-wide"><Hash className="w-3 h-3"/> Context</span>
+                  <button type="button" className="p-2 text-faint hover:text-main transition-colors rounded-full hover:bg-white/5">
                     <Mic className="w-4 h-4" />
                   </button>
                   <button 
                     type="submit"
                     disabled={isLoading || !input.trim()}
-                    className="p-2.5 bg-primary text-[#17191D] rounded-xl hover:bg-primary-hover hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                    className="p-3 bg-white text-black rounded-full hover:bg-gray-200 hover:scale-105 transition-all disabled:opacity-30 disabled:hover:scale-100 shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center"
                   >
-                    <ArrowUp className="w-4 h-4 font-bold" />
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4 stroke-[3]" />}
                   </button>
                 </div>
               </form>
+              
+              <div className="flex items-center gap-2 mt-4 px-2 overflow-x-auto no-scrollbar">
+                <span className="text-[10px] uppercase font-extrabold text-white/30 tracking-widest mr-1 flex-shrink-0">Try</span>
+                <button 
+                  onClick={() => setInput("Who am I?")}
+                  className="text-[11px] font-medium text-muted hover:text-main bg-white/5 hover:bg-white/10 px-4 py-1.5 rounded-full border border-white/5 transition-all flex-shrink-0 hover:scale-105"
+                >
+                  Who am I?
+                </button>
+                <button 
+                  onClick={() => setInput("Summarize my last 5 memories")}
+                  className="text-[11px] font-medium text-muted hover:text-main bg-white/5 hover:bg-white/10 px-4 py-1.5 rounded-full border border-white/5 transition-all flex-shrink-0 hover:scale-105"
+                >
+                  Summarize my last 5 memories
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -274,13 +299,6 @@ export default function PlaygroundPage() {
 
             {/* General Settings */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Sources</span>
-                <span className="text-xs text-main bg-bg px-2 py-1 rounded border border-border flex items-center gap-1 cursor-pointer hover:bg-surface-hover">
-                  All sources <ChevronDown className="w-3 h-3" />
-                </span>
-              </div>
-
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted">Use your profile</span>
                 <button onClick={() => setUseProfile(!useProfile)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${useProfile ? 'bg-primary' : 'bg-bg border border-border'}`}>
