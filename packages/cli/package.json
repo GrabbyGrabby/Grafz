@@ -1,0 +1,16 @@
+{
+  "name": "grafz",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "bin": {
+    "grafz": "./bin.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^15.0.0",
+    "fs-extra": "^11.4.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
