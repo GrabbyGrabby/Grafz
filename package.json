@@ -12,12 +12,6 @@
   "engines": {
     "node": ">=20"
   },
-  "workspaces": [
-    "apps/*",
-    "!apps/raycast-extension",
-    "!tools/test/chatapp",
-    "packages/*"
-  ],
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/cerebras": "^0.2.16",
