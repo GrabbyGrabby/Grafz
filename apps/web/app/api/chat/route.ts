@@ -35,7 +35,7 @@ FORMATTING RULE: You MUST arrange your responses in well-structured, modern bull
   // Base models map
   const availableModels = [
     { id: "gemini-free", name: "Gemini 3.5 Flash", model: google("models/gemini-3.5-flash") },
-    { id: "gemini-pro", name: "Gemini 3.5 Pro", model: google("models/gemini-3.5-pro") },
+    { id: "gemini-pro", name: "Gemini 2.5 Pro", model: google("models/gemini-2.5-pro") },
     { id: "gemini-2-flash", name: "Gemini 2.5 Flash", model: google("models/gemini-2.5-flash") }
   ];
 
