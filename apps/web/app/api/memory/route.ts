@@ -1,37 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pipeline, env } from "@xenova/transformers";
-import { PrivyClient } from "@privy-io/server-auth";
 import { createClient } from "@supabase/supabase-js";
 
-env.allowLocalModels = false;
-
-const privy = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!
-);
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-class PipelineSingleton {
-  static task = "feature-extraction";
-  static model = "Xenova/all-MiniLM-L6-v2"; // 384 dimensions
-  static instance: any = null;
-
-  static async getInstance(progress_callback: any = null) {
-    if (this.instance === null) {
-      this.instance = pipeline(this.task as any, this.model, { progress_callback });
-    }
-    return this.instance;
+function getPrivyClient() {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_APP_SECRET;
+  if (!appId || !appSecret) {
+    throw new Error(`Privy env vars missing`);
   }
+  const { PrivyClient } = require("@privy-io/server-auth");
+  return new PrivyClient(appId, appSecret);
 }
 
-async function getEmbedding(text: string) {
-  const extractor = await PipelineSingleton.getInstance();
-  const output = await extractor(text, { pooling: "mean", normalize: true });
-  return Array.from(output.data) as number[];
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+async function getEmbedding(text: string): Promise<number[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: { parts: [{ text }] },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.warn(`Gemini embedding failed (${res.status}): ${err}`);
+    return new Array(1536).fill(0);
+  }
+
+  const data = await res.json();
+  return data.embedding.values as number[];
 }
 
 export async function POST(req: NextRequest) {
@@ -42,13 +51,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
-    // 1. Authenticate the User with Privy
     let userId;
     try {
+      const privy = getPrivyClient();
       const authHeader = req.headers.get("authorization") || "";
       const token = authHeader.replace("Bearer ", "");
       if (!token) {
-        // Fallback to checking the session cookie (privy-token)
         const cookieToken = req.cookies.get("privy-token")?.value;
         if (!cookieToken) throw new Error("No token");
         const verifiedClaims = await privy.verifyAuthToken(cookieToken);
@@ -61,20 +69,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
 
-    // 2. Generate Embeddings using direct REST API
     const embedding = await getEmbedding(content);
+    const paddedEmbedding = [...embedding, ...new Array(Math.max(0, 1536 - embedding.length)).fill(0)];
+    const finalEmbedding = paddedEmbedding.slice(0, 1536);
     
-    // Convert embedding vector to 1536 by padding with zeros
-    const paddedEmbedding = [...embedding, ...new Array(1536 - embedding.length).fill(0)];
-    
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("memories")
       .insert([
         {
           content,
           metadata: metadata || {},
-          embedding: paddedEmbedding, // 1536 dimensions
-          user_id: userId, // Store Privy ID
+          embedding: finalEmbedding,
+          user_id: userId,
         },
       ])
       .select()
@@ -97,9 +104,9 @@ export async function GET(req: NextRequest) {
   const query = searchParams.get("q");
 
   try {
-    // 1. Authenticate the User with Privy
     let userId;
     try {
+      const privy = getPrivyClient();
       const authHeader = req.headers.get("authorization") || "";
       const token = authHeader.replace("Bearer ", "");
       if (!token) {
@@ -115,7 +122,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
 
-    // If no query, return all documents (latest 50) for this user
+    const supabase = getSupabase();
+
     if (!query) {
       const { data, error } = await supabase
         .from("memories")
@@ -128,13 +136,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results: data });
     }
 
-    // If query exists, perform semantic search
     const embedding = await getEmbedding(query);
-    const paddedEmbedding = [...embedding, ...new Array(1536 - embedding.length).fill(0)];
+    const paddedEmbedding = [...embedding, ...new Array(Math.max(0, 1536 - embedding.length)).fill(0)];
+    const finalEmbedding = paddedEmbedding.slice(0, 1536);
 
-    // We must pass match_user_id to the RPC so it filters internally, since we bypass RLS with Service Key
-    const { data, error } = await supabase.rpc("match_memories", {
-      query_embedding: paddedEmbedding,
+    let { data, error } = await supabase.rpc("match_memories", {
+      query_embedding: finalEmbedding,
       match_threshold: 0.1,
       match_count: 5,
       match_user_id: userId
@@ -145,10 +152,30 @@ export async function GET(req: NextRequest) {
       throw error;
     }
 
+    // FALLBACK: If vector search fails (e.g., memory was inserted as a zero-vector during API rate limits),
+    // perform a standard text search.
+    if (!data || data.length === 0) {
+      console.log("Vector search yielded 0 results, falling back to text search.");
+      // Create a simple broad search by splitting query into words
+      const words = query.split(/\s+/).filter(w => w.length > 3);
+      let textQuery = supabase.from("memories").select("*").eq("user_id", userId);
+      
+      if (words.length > 0) {
+        // Use ilike on the most prominent word for a simple fallback
+        textQuery = textQuery.ilike("content", `%${words[0]}%`);
+      } else {
+        textQuery = textQuery.ilike("content", `%${query}%`);
+      }
+
+      const textFallback = await textQuery.limit(5);
+      if (textFallback.data && textFallback.data.length > 0) {
+        data = textFallback.data;
+      }
+    }
+
     return NextResponse.json({ results: data });
   } catch (error) {
     console.error("Memory search error:", error);
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }
 }
-
