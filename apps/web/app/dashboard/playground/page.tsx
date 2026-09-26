@@ -122,7 +122,7 @@ export default function PlaygroundPage() {
           {/* Chat / Search Content */}
           <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar relative z-10">
             {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center -mt-16 pb-40">
+              <div className="flex-1 flex flex-col items-center justify-center -mt-16 pb-64 md:pb-40">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }} 
                   animate={{ opacity: 1, scale: 1 }}
@@ -183,15 +183,15 @@ export default function PlaygroundPage() {
           </div>
 
           {/* Input Area anchored to bottom */}
-          <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-bg via-bg to-transparent z-20">
+          <div className="absolute bottom-0 left-0 w-full p-4 md:p-6 bg-gradient-to-t from-bg via-bg via-70% to-transparent z-20">
             <div className="w-full max-w-3xl mx-auto">
               {messages.length === 0 && (
-                <div className="flex flex-wrap gap-3 mb-4 justify-center">
+                <div className="flex flex-wrap gap-2 md:gap-3 mb-4 justify-center">
                   {suggestions.map((s, i) => (
                     <button 
                       key={i} 
                       onClick={() => setInput(s)}
-                      className="px-4 py-2 rounded-full border border-border bg-surface text-xs text-muted hover:text-main hover:bg-surface-hover transition-colors flex items-center gap-2 shadow-sm"
+                      className="px-3 md:px-4 py-2 rounded-full border border-border bg-surface text-[11px] md:text-xs text-muted hover:text-main hover:bg-surface-hover transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap"
                     >
                       <User className="w-3 h-3" />
                       {s}
@@ -200,50 +200,52 @@ export default function PlaygroundPage() {
                 </div>
               )}
 
-              <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/80 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex items-end relative group">
-                <div className="p-3 pl-4 flex-shrink-0 relative">
-                  <div className="relative flex items-center bg-white/5 border border-white/5 rounded-full px-3 py-1.5 shadow-inner hover:bg-white/10 transition-colors group">
+              <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/95 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex flex-col relative group">
+                
+                {/* Model Selector - Top Bar inside input */}
+                <div className="px-4 pt-3 flex items-center justify-between">
+                  <div className="relative flex items-center bg-white/5 border border-white/5 rounded-full px-3 py-1 shadow-inner hover:bg-white/10 transition-colors group/select cursor-pointer">
                     <Plus className="w-3 h-3 text-faint mr-2" /> 
                     <select
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
-                      className="appearance-none bg-transparent text-[11px] font-semibold tracking-wide text-faint group-focus-within:text-muted hover:text-main outline-none cursor-pointer pr-4"
+                      className="appearance-none bg-transparent text-[10px] md:text-[11px] font-semibold tracking-wide text-faint group-focus-within/select:text-muted hover:text-main outline-none cursor-pointer pr-4"
                     >
                       <option value="gemini-free" className="bg-bg text-main">Gemini 3.5 Flash</option>
                       <option value="gemini-pro" className="bg-bg text-main">Gemini 2.5 Pro</option>
                       <option value="gemini-2-flash" className="bg-bg text-main">Gemini 2.5 Flash</option>
                     </select>
-                    <ChevronDown className="w-3 h-3 text-faint absolute right-3 pointer-events-none" />
+                    <ChevronDown className="w-3 h-3 text-faint absolute right-2 pointer-events-none" />
                   </div>
                 </div>
-                <textarea
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Ask anything about your memories..."
-                  className="w-full bg-transparent p-4 text-main placeholder-faint resize-none outline-none min-h-[60px] max-h-[200px] pt-[22px] font-medium text-[15px] leading-relaxed transition-colors"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleChatSubmit(e);
-                    }
-                  }}
-                />
-                <div className="p-3 flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[11px] font-semibold text-faint flex items-center gap-1 hidden sm:flex tracking-wide"><Hash className="w-3 h-3"/> Context</span>
-                  <button type="button" className="p-2 text-faint hover:text-main transition-colors rounded-full hover:bg-white/5">
-                    <Mic className="w-4 h-4" />
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={isLoading || !input.trim()}
-                    className="p-3 bg-white text-black rounded-full hover:bg-gray-200 hover:scale-105 transition-all disabled:opacity-30 disabled:hover:scale-100 shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4 stroke-[3]" />}
-                  </button>
+
+                <div className="flex items-end relative">
+                  <textarea
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder="Ask anything about your memories..."
+                    className="w-full bg-transparent px-4 pb-4 pt-2 text-main placeholder-faint resize-none outline-none min-h-[60px] max-h-[200px] font-medium text-[14px] md:text-[15px] leading-relaxed transition-colors custom-scrollbar"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleChatSubmit(e);
+                      }
+                    }}
+                  />
+                  <div className="p-3 flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[11px] font-semibold text-faint flex items-center gap-1 hidden sm:flex tracking-wide"><Hash className="w-3 h-3"/> Context</span>
+                    <button 
+                      type="submit"
+                      disabled={isLoading || !input.trim()}
+                      className="w-10 h-10 bg-white text-black rounded-full hover:bg-gray-200 hover:scale-105 transition-all disabled:opacity-30 disabled:hover:scale-100 shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center flex-shrink-0"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-5 h-5 stroke-[3]" />}
+                    </button>
+                  </div>
                 </div>
               </form>
               
-              <div className="flex items-center gap-2 mt-4 px-2 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-2 mt-4 px-2 overflow-x-auto no-scrollbar pb-2">
                 <span className="text-[10px] uppercase font-extrabold text-white/30 tracking-widest mr-1 flex-shrink-0">Try</span>
                 <button 
                   onClick={() => setInput("Who am I?")}
