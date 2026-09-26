@@ -133,23 +133,14 @@ export default function PlaygroundPage() {
                 </motion.div>
                 <h2 className="text-2xl font-bold text-main mb-8">See what Grafz can do</h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                <div className="grid grid-cols-1 gap-4 w-full max-w-sm">
                   {/* Save to Memory Card */}
-                  <Link href="/dashboard/import" className="bg-surface border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all cursor-pointer group">
+                  <Link href="/dashboard/import" className="bg-surface border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col items-center text-center">
                     <div className="w-10 h-10 rounded-xl bg-bg border border-border flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                       <Plus className="w-5 h-5 text-primary" />
                     </div>
                     <h3 className="text-lg font-semibold text-main mb-1">Save to memory</h3>
                     <p className="text-sm text-muted leading-relaxed">Ingest URLs, text, or files into your semantic graph for later retrieval.</p>
-                  </Link>
-
-                  {/* Search Memories Card */}
-                  <Link href="/dashboard/documents" className="bg-surface border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all cursor-pointer group">
-                    <div className="w-10 h-10 rounded-xl bg-bg border border-border flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Search className="w-5 h-5 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-main mb-1">Search memories</h3>
-                    <p className="text-sm text-muted leading-relaxed">Query your exact knowledge base using high-dimensional semantic search.</p>
                   </Link>
                 </div>
               </div>
@@ -200,26 +191,26 @@ export default function PlaygroundPage() {
                 </div>
               )}
 
-              <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/95 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex flex-col relative group">
+              <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/95 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex relative group">
                 
-                {/* Model Selector - Top Bar inside input */}
-                <div className="px-4 pt-3 flex items-center justify-between">
-                  <div className="relative flex items-center bg-white/5 border border-white/5 rounded-full px-3 py-1 shadow-inner hover:bg-white/10 transition-colors group/select cursor-pointer">
-                    <Plus className="w-3 h-3 text-faint mr-2" /> 
+                {/* Model Selector - Left Side of input */}
+                <div className="flex flex-col justify-end p-2 pl-3 pb-3 flex-shrink-0 relative">
+                  <div className="relative w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center border border-white/5 cursor-pointer">
+                    <Plus className="w-4 h-4 text-faint" />
                     <select
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
-                      className="appearance-none bg-transparent text-[10px] md:text-[11px] font-semibold tracking-wide text-faint group-focus-within/select:text-muted hover:text-main outline-none cursor-pointer pr-4"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      title="Select Model"
                     >
-                      <option value="gemini-free" className="bg-bg text-main">Gemini 3.5 Flash</option>
-                      <option value="gemini-pro" className="bg-bg text-main">Gemini 2.5 Pro</option>
-                      <option value="gemini-2-flash" className="bg-bg text-main">Gemini 2.5 Flash</option>
+                      <option value="gemini-free">Gemini 3.5 Flash</option>
+                      <option value="gemini-pro">Gemini 2.5 Pro</option>
+                      <option value="gemini-2-flash">Gemini 2.5 Flash</option>
                     </select>
-                    <ChevronDown className="w-3 h-3 text-faint absolute right-2 pointer-events-none" />
                   </div>
                 </div>
 
-                <div className="flex items-end relative">
+                <div className="flex items-end relative flex-1">
                   <textarea
                     value={input}
                     onChange={handleInputChange}
