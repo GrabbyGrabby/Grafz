@@ -6,8 +6,7 @@
     "dev": "turbo run dev",
     "dev:local": "turbo run dev:app",
     "format-lint": "bunx biome check --write",
-    "check-types": "turbo run check-types",
-    "vercelbuild": "cd apps/web && bun run build && cp -r .next ../../.next"
+    "check-types": "turbo run check-types"
   },
   "engines": {
     "node": ">=20"
