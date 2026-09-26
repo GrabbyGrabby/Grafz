@@ -94,18 +94,7 @@ export default function PlaygroundPage() {
             </a>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-faint">Model:</span>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-surface border border-border rounded-xl px-4 py-2 text-sm text-main outline-none focus:border-primary transition-colors cursor-pointer"
-          >
-            <option value="gemini-free">Gemini 3.5 Flash</option>
-            <option value="gemini-pro">Gemini 3.5 Pro</option>
-            <option value="gemini-2-flash">Gemini 2.5 Flash</option>
-          </select>
-        </div>
+
       </div>
 
       {/* Main Layout */}
@@ -212,14 +201,20 @@ export default function PlaygroundPage() {
               )}
 
               <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/80 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex items-end relative group">
-                <div className="p-3 pl-4 flex-shrink-0">
-                  <button type="button" className="text-faint group-focus-within:text-muted hover:text-main transition-colors flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 text-[11px] font-semibold tracking-wide border border-white/5 shadow-inner">
-                    <Plus className="w-3 h-3" /> 
-                    {selectedModel === "gemini-free" ? "Gemini 1.5 (Free)" : 
-                     selectedModel === "llama-free" ? "Llama 3.1 (Free)" :
-                     selectedModel === "mistral-free" ? "Mistral (Free)" : "Model"}
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
+                <div className="p-3 pl-4 flex-shrink-0 relative">
+                  <div className="relative flex items-center bg-white/5 border border-white/5 rounded-full px-3 py-1.5 shadow-inner hover:bg-white/10 transition-colors group">
+                    <Plus className="w-3 h-3 text-faint mr-2" /> 
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="appearance-none bg-transparent text-[11px] font-semibold tracking-wide text-faint group-focus-within:text-muted hover:text-main outline-none cursor-pointer pr-4"
+                    >
+                      <option value="gemini-free" className="bg-bg text-main">Gemini 3.5 Flash</option>
+                      <option value="gemini-pro" className="bg-bg text-main">Gemini 2.5 Pro</option>
+                      <option value="gemini-2-flash" className="bg-bg text-main">Gemini 2.5 Flash</option>
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-faint absolute right-3 pointer-events-none" />
+                  </div>
                 </div>
                 <textarea
                   value={input}
@@ -267,133 +262,7 @@ export default function PlaygroundPage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Memory Settings */}
-        <div className="w-[300px] flex-shrink-0 bg-surface border border-border rounded-2xl p-6 flex flex-col shadow-xl">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-semibold text-main">Memory settings</h2>
-            <button className="flex items-center gap-1 text-xs text-faint hover:text-muted transition-colors">
-              Reset <RotateCcw className="w-3 h-3" />
-            </button>
-          </div>
 
-          <div className="space-y-6">
-            
-            {/* Memory Mode Toggle */}
-            <div>
-              <label className="text-[10px] font-bold text-faint uppercase tracking-wider mb-3 block">Memory</label>
-              <div className="flex bg-bg rounded-lg p-1 border border-border">
-                <button 
-                  onClick={() => setMemorySettingTab("agentic")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${memorySettingTab === "agentic" ? "bg-surface border border-border-strong text-main shadow-sm" : "text-muted hover:text-main"}`}
-                >
-                  Agentic
-                </button>
-                <button 
-                  onClick={() => setMemorySettingTab("autosearch")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${memorySettingTab === "autosearch" ? "bg-surface border border-border-strong text-main shadow-sm" : "text-muted hover:text-main"}`}
-                >
-                  Auto-search
-                </button>
-              </div>
-            </div>
-
-            {/* General Settings */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Use your profile</span>
-                <button onClick={() => setUseProfile(!useProfile)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${useProfile ? 'bg-primary' : 'bg-bg border border-border'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${useProfile ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Sliders / Number Inputs */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Memories retrieved</span>
-                <div className="flex items-center gap-2 bg-bg border border-border rounded px-2 py-1">
-                  <button onClick={() => setMemoriesRetrieved(Math.max(1, memoriesRetrieved - 1))} className="text-faint hover:text-main">-</button>
-                  <span className="text-xs text-main w-6 text-center">{memoriesRetrieved}</span>
-                  <button onClick={() => setMemoriesRetrieved(memoriesRetrieved + 1)} className="text-faint hover:text-main">+</button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Match strictness</span>
-                <div className="flex items-center gap-2 bg-bg border border-border rounded px-2 py-1">
-                  <button onClick={() => setMatchStrictness(Math.max(0, matchStrictness - 0.1))} className="text-faint hover:text-main">-</button>
-                  <span className="text-xs text-main w-8 text-center">{matchStrictness.toFixed(2)}</span>
-                  <button onClick={() => setMatchStrictness(Math.min(1, matchStrictness + 0.1))} className="text-faint hover:text-main">+</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Toggles */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Rerank results</span>
-                <button onClick={() => setRerank(!rerank)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${rerank ? 'bg-primary' : 'bg-bg border border-border'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${rerank ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Rewrite query</span>
-                <button onClick={() => setRewrite(!rewrite)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${rewrite ? 'bg-primary' : 'bg-bg border border-border'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${rewrite ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Aggregate results</span>
-                <button onClick={() => setAggregate(!aggregate)} className={`w-10 h-5 rounded-full p-0.5 transition-colors ${aggregate ? 'bg-primary' : 'bg-bg border border-border'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${aggregate ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Checkboxes */}
-            <div className="pt-4 border-t border-border">
-              <label className="text-[10px] font-bold text-faint uppercase tracking-wider mb-3 block">Include in results</label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input type="checkbox" checked={includeRelated} onChange={() => setIncludeRelated(!includeRelated)} className="hidden" />
-                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeRelated ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
-                    {includeRelated && <Check className="w-3 h-3 text-bg" />}
-                  </div>
-                  <span className="text-sm text-muted group-hover:text-main transition-colors">Related</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input type="checkbox" checked={includeDocs} onChange={() => setIncludeDocs(!includeDocs)} className="hidden" />
-                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeDocs ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
-                    {includeDocs && <Check className="w-3 h-3 text-bg" />}
-                  </div>
-                  <span className="text-sm text-muted group-hover:text-main transition-colors">Documents</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input type="checkbox" checked={includeChunks} onChange={() => setIncludeChunks(!includeChunks)} className="hidden" />
-                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeChunks ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
-                    {includeChunks && <Check className="w-3 h-3 text-bg" />}
-                  </div>
-                  <span className="text-sm text-muted group-hover:text-main transition-colors">Chunks</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input type="checkbox" checked={includeSummaries} onChange={() => setIncludeSummaries(!includeSummaries)} className="hidden" />
-                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${includeSummaries ? 'bg-primary' : 'bg-bg border border-border group-hover:border-primary'}`}>
-                    {includeSummaries && <Check className="w-3 h-3 text-bg" />}
-                  </div>
-                  <span className="text-sm text-muted group-hover:text-main transition-colors">Summaries</span>
-                </label>
-              </div>
-            </div>
-
-          </div>
-          
-          <div className="mt-auto pt-6 flex justify-between items-center text-xs text-faint">
-            <span>REQUEST</span>
-            <button className="flex items-center gap-1 hover:text-muted transition-colors">
-              Copy <Copy className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
 
       </div>
     </div>

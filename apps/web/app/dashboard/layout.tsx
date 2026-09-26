@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { 
   BrainCircuit, Search, Plus, Home, Terminal, FileText, 
   Tags, Share2, Activity, Users, Plug, Download, HelpCircle, FileJson, 
-  MoreHorizontal, Key, Copy, Bot, ChevronLeft, ChevronRight, LogOut
+  MoreHorizontal, Key, Copy, Bot, ChevronLeft, ChevronRight, LogOut, Menu, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
@@ -21,7 +21,6 @@ const navItems = [
   { name: "Overview", href: "/dashboard", icon: Home },
   { name: "Playground", href: "/dashboard/playground", icon: Terminal },
   { name: "Documents", href: "/dashboard/documents", icon: FileText },
-  { name: "Container Tags", href: "/dashboard/tags", icon: Tags },
   { name: "Memory Graph", href: "/dashboard/graph", icon: Share2 },
   { name: "Requests", href: "/dashboard/requests", icon: Activity },
 ];
@@ -47,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -110,12 +110,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </AnimatePresence>
 
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <motion.aside 
         initial={false}
-        animate={{ width: isSidebarOpen ? 240 : 64 }}
+        animate={{ 
+          width: isSidebarOpen ? 240 : 64,
+          x: typeof window !== 'undefined' && window.innerWidth < 768 ? (isMobileMenuOpen ? 0 : -240) : 0
+        }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="flex-shrink-0 flex flex-col relative z-20 border-r border-white/5 bg-black/40 backdrop-blur-xl shadow-2xl"
+        className={cn(
+          "flex-shrink-0 flex flex-col relative z-40 border-r border-white/5 bg-black/80 md:bg-black/40 backdrop-blur-xl shadow-2xl h-full",
+          "absolute md:relative left-0 top-0 bottom-0"
+        )}
       >
         {/* Logo Area */}
         <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
@@ -294,10 +308,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 overflow-hidden flex flex-col relative z-10">
         {/* Topbar */}
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 border-b border-white/5 z-10 relative bg-black/40 backdrop-blur-xl shadow-sm">
-          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 text-sm cursor-pointer hover:bg-white/10 transition-colors">
-            <div className="w-5 h-5 bg-primary rounded-md flex items-center justify-center text-[10px] text-black font-bold shadow-lg">G</div>
-            <span className="text-main font-semibold tracking-wide">Grafz</span>
-            <span className="text-[9px] uppercase bg-white/10 px-1.5 py-0.5 rounded text-muted font-bold tracking-widest ml-1">Free</span>
+          <div className="flex items-center gap-2">
+            <button 
+              className="md:hidden mr-2 text-muted hover:text-main"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 text-sm cursor-pointer hover:bg-white/10 transition-colors">
+              <div className="w-5 h-5 bg-primary rounded-md flex items-center justify-center text-[10px] text-black font-bold shadow-lg">G</div>
+              <span className="text-main font-semibold tracking-wide">Grafz</span>
+              <span className="text-[9px] uppercase bg-white/10 px-1.5 py-0.5 rounded text-muted font-bold tracking-widest ml-1">Free</span>
+            </div>
           </div>
           <div className="flex items-center gap-6 text-sm font-medium">
             <button className="text-muted hover:text-main transition-colors">Help</button>

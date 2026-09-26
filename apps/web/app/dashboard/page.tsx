@@ -42,18 +42,7 @@ export default function DashboardOverviewPage() {
               </button>
             </div>
           </div>
-          <div className="flex flex-col gap-6 w-full lg:w-1/3">
-            <div className="flex gap-6 text-sm font-medium text-muted">
-              <a href="#" className="flex items-center gap-1.5 hover:text-main transition-colors group">
-                Connect over MCP 
-                <ArrowUpRight className="w-4 h-4 text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
-              <a href="#" className="flex items-center gap-1.5 hover:text-main transition-colors group">
-                Building with API 
-                <ArrowUpRight className="w-4 h-4 text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
-            </div>
-          </div>
+
         </div>
 
         {/* Right: Manual Setup */}
