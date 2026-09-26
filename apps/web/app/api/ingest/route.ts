@@ -80,14 +80,15 @@ export async function POST(req: NextRequest) {
     console.log("INGESTION: generating embedding...");
     const embedding = await getEmbedding(content);
     const paddedEmbedding = [...embedding, ...new Array(Math.max(0, 1536 - embedding.length)).fill(0)];
-    console.log("INGESTION: embedding done, dims =", embedding.length);
+    const finalEmbedding = paddedEmbedding.slice(0, 1536);
+    console.log("INGESTION: embedding done, dims =", finalEmbedding.length);
 
     // Insert
     const supabase = getSupabase();
     const payload = {
       content,
       metadata: { source, tags },
-      embedding: paddedEmbedding,
+      embedding: finalEmbedding,
       user_id: userId,
     };
 
