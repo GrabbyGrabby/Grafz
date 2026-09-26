@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { pipeline, env } from "@xenova/transformers";
 import { PrivyClient } from "@privy-io/server-auth";
-
-env.allowLocalModels = false;
 
 const privy = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
@@ -14,23 +11,29 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-class PipelineSingleton {
-  static task = "feature-extraction";
-  static model = "Xenova/all-MiniLM-L6-v2";
-  static instance: any = null;
+async function getEmbedding(text: string): Promise<number[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
-  static async getInstance(progress_callback: any = null) {
-    if (this.instance === null) {
-      this.instance = pipeline(this.task as any, this.model, { progress_callback });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "models/text-embedding-004",
+        content: { parts: [{ text }] },
+      }),
     }
-    return this.instance;
-  }
-}
+  );
 
-async function getEmbedding(text: string) {
-  const extractor = await PipelineSingleton.getInstance();
-  const output = await extractor(text, { pooling: "mean", normalize: true });
-  return Array.from(output.data) as number[];
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini embedding failed: ${err}`);
+  }
+
+  const data = await res.json();
+  return data.embedding.values as number[];
 }
 
 export async function POST(req: NextRequest) {
@@ -62,7 +65,8 @@ export async function POST(req: NextRequest) {
     }
 
     const embedding = await getEmbedding(content);
-    const paddedEmbedding = [...embedding, ...new Array(1536 - embedding.length).fill(0)];
+    // Gemini text-embedding-004 outputs 768 dimensions; pad to 1536 for the DB column
+    const paddedEmbedding = [...embedding, ...new Array(Math.max(0, 1536 - embedding.length)).fill(0)];
     
     const payload = {
       content,
