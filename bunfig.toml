@@ -1,6 +1,6 @@
 
-[install.workspaces]
-packages = [
+[install]
+workspaces = [
     "apps/*",
     "!apps/raycast-extension",
     "!tools/test/chatapp",
