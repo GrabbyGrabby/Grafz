@@ -2,7 +2,9 @@
 const nextConfig = {
 	poweredByHeader: false,
 	skipTrailingSlashRedirect: true,
-	serverExternalPackages: ["@xenova/transformers"],
+	experimental: {
+		serverComponentsExternalPackages: ["@xenova/transformers"],
+	}
 }
 export default nextConfig;
 
