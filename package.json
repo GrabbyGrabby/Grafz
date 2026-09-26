@@ -57,7 +57,8 @@
     "drizzle-kit": "^0.31.4",
     "turbo": "^2.5.4",
     "typescript": "5.8.3",
-    "wrangler": "^4.42.2"
+    "wrangler": "^4.42.2",
+    "next": "14.2.3"
   },
   "overrides": {
     "@types/react": "^19.2.14",
