@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { PrivyClient } from "@privy-io/server-auth";
 
-const privy = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!
-);
+// Defer PrivyClient creation to runtime to catch missing env vars
+function getPrivyClient() {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_APP_SECRET;
+  if (!appId || !appSecret) {
+    throw new Error(`Privy env vars missing: appId=${!!appId}, appSecret=${!!appSecret}`);
+  }
+  const { PrivyClient } = require("@privy-io/server-auth");
+  return new PrivyClient(appId, appSecret);
+}
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(`Supabase env vars missing: url=${!!url}, key=${!!key}`);
+  }
+  return createClient(url, key);
+}
 
 async function getEmbedding(text: string): Promise<number[]> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -29,7 +39,7 @@ async function getEmbedding(text: string): Promise<number[]> {
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Gemini embedding failed: ${err}`);
+    throw new Error(`Gemini embedding failed (${res.status}): ${err}`);
   }
 
   const data = await res.json();
@@ -38,44 +48,49 @@ async function getEmbedding(text: string): Promise<number[]> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth
     let userId;
     try {
+      const privy = getPrivyClient();
       const authHeader = req.headers.get("Authorization") || "";
       const token = authHeader.replace("Bearer ", "");
       if (!token) {
         const cookieToken = req.cookies.get("privy-token")?.value;
-        if (!cookieToken) throw new Error("No token");
+        if (!cookieToken) throw new Error("No token found");
         const verifiedClaims = await privy.verifyAuthToken(cookieToken);
         userId = verifiedClaims.userId;
       } else {
         const verifiedClaims = await privy.verifyAuthToken(token);
         userId = verifiedClaims.userId;
       }
-    } catch (e) {
-      return NextResponse.json({ error: "Unauthorized. Invalid Token." }, { status: 401 });
+    } catch (e: any) {
+      console.error("Auth error:", e?.message || e);
+      return NextResponse.json({ error: "Unauthorized", detail: e?.message }, { status: 401 });
     }
 
-    console.log("================= INGESTION TRIGGERED ======================");
-    console.log("Extracted Privy User ID:", userId);
+    console.log("INGESTION: userId =", userId);
 
-    const { content, source, tags = [] } = await req.json();
+    const body = await req.json();
+    const { content, source, tags = [] } = body;
 
     if (!content) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
+    // Embedding
+    console.log("INGESTION: generating embedding...");
     const embedding = await getEmbedding(content);
-    // Gemini text-embedding-004 outputs 768 dimensions; pad to 1536 for the DB column
     const paddedEmbedding = [...embedding, ...new Array(Math.max(0, 1536 - embedding.length)).fill(0)];
-    
+    console.log("INGESTION: embedding done, dims =", embedding.length);
+
+    // Insert
+    const supabase = getSupabase();
     const payload = {
       content,
       metadata: { source, tags },
       embedding: paddedEmbedding,
       user_id: userId,
     };
-    
-    console.log("Inserting Payload:", { ...payload, embedding: "[VECTOR BLOB HIDDEN]" });
 
     const { data, error } = await supabase
       .from("memories")
@@ -84,18 +99,21 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Supabase error:", error);
-      throw error;
+      console.error("Supabase insert error:", JSON.stringify(error));
+      return NextResponse.json({ error: "Database error", detail: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: "Memory successfully ingested",
-      memory: data 
+      memory: data,
     }, { status: 201 });
 
-  } catch (error) {
-    console.error("Ingestion error:", error);
-    return NextResponse.json({ error: "Failed to ingest memory" }, { status: 500 });
+  } catch (error: any) {
+    console.error("INGESTION CRASH:", error?.message || error, error?.stack);
+    return NextResponse.json(
+      { error: "Failed to ingest memory", detail: error?.message || String(error) },
+      { status: 500 }
+    );
   }
 }
