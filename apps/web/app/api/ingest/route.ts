@@ -53,23 +53,36 @@ export async function POST(req: NextRequest) {
   try {
     // Auth
     let userId;
-    try {
-      const privy = getPrivyClient();
-      const authHeader = req.headers.get("Authorization") || "";
-      const token = authHeader.replace("Bearer ", "");
-      if (!token) {
-        const cookieToken = req.cookies.get("privy-token")?.value;
-        if (!cookieToken) throw new Error("No token found");
-        const verifiedClaims = await privy.verifyAuthToken(cookieToken);
-        userId = verifiedClaims.userId;
-      } else {
-        const verifiedClaims = await privy.verifyAuthToken(token);
-        userId = verifiedClaims.userId;
+      try {
+        const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+        const token = authHeader.replace("Bearer ", "").trim();
+        
+        if (token && token.startsWith("grafz_")) {
+          const supabase = getSupabase();
+          const { data, error } = await supabase
+            .from("memories")
+            .select("user_id")
+            .eq("content", "GRAFZ_API_KEY")
+            .eq("metadata->>key", token)
+            .limit(1);
+            
+          if (error || !data || data.length === 0) throw new Error("Invalid API Key");
+          userId = data[0].user_id;
+        } else {
+          const privy = getPrivyClient();
+          if (!token) {
+            const cookieToken = req.cookies.get("privy-token")?.value;
+            if (!cookieToken) throw new Error("No token");
+            const verifiedClaims = await privy.verifyAuthToken(cookieToken);
+            userId = verifiedClaims.userId;
+          } else {
+            const verifiedClaims = await privy.verifyAuthToken(token);
+            userId = verifiedClaims.userId;
+          }
+        }
+      } catch (e) {
+        return NextResponse.json({ error: "Unauthorized. Please log in or provide valid API key." }, { status: 401 });
       }
-    } catch (e: any) {
-      console.error("Auth error:", e?.message || e);
-      return NextResponse.json({ error: "Unauthorized", detail: e?.message }, { status: 401 });
-    }
 
     console.log("INGESTION: userId =", userId);
 

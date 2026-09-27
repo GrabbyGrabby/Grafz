@@ -40,7 +40,7 @@ const developerItems = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { ready, authenticated, user, logout } = usePrivy();
+  const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -60,11 +60,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const userEmail = user?.email?.address || user?.google?.email || "User";
 
-  const handleCreateApiKey = () => {
-    // Generate a dummy API key for the UI
-    const key = "grafz_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    setApiKey(key);
-    setShowApiKeyModal(true);
+  const handleCreateApiKey = async () => {
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/keys", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.apiKey) {
+        setApiKey(data.apiKey);
+        setShowApiKeyModal(true);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to generate API Key");
+    }
   };
 
   return (
