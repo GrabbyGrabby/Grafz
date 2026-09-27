@@ -1,0 +1,59 @@
+# You are onboarding this project to Grafz
+
+Grafz is a semantic memory API for AI apps and agents: ingest conversations, documents, files, and URLs; get semantic search, extracted facts, and context back. Every call is scoped to a specific user using their `GRAFZ_API_KEY`.
+
+## What you can call
+
+| Operation | Endpoint | Use when |
+|---|---|---|
+| Ingest memory | POST /api/ingest | Save facts, context, or raw chunks to the semantic graph |
+| Search memories | GET /api/memory?q={query}&limit={limit} | Find extracted facts via high-dimensional vector similarity |
+| Create API Key | POST /api/keys | Programmatically generate a new key for a user |
+
+Full API reference for agents is available at: https://grafzz-flame.vercel.app/api/docs
+
+Now work the steps below in order. Do not skip ahead. Stop where a step says to.
+
+## Step 1 — Credentials
+
+API key env var: `GRAFZ_API_KEY` (never hardcode it, never print it back).
+
+If that reads `YOUR_GRAFZ_API_KEY`, ask the user to log into the Grafz dashboard (https://grafzz-flame.vercel.app), create an API Key from the sidebar, export it as `GRAFZ_API_KEY`, and tell you when it is set. Wait for confirmation.
+
+## Step 2 — Install the docs MCP server, then brief the user
+
+Add this MCP server to your client to interact with Grafz directly: 
+`https://grafzz-flame.vercel.app/api/mcp`
+
+It serves tools to `search_grafz_memories` and `ingest_grafz_memory`. Prefer its answers over prior knowledge for anything related to the user's semantic graph.
+
+Then give the user a short rundown of what Grafz can do for THIS project, using the table above.
+
+## Step 3 — Scan this repo for integration points
+
+If this directory has application source, read enough to understand it, then map findings against this table. Cite exact files and lines. If the repo is empty or docs-only, say so and skip to Step 5.
+
+| Code pattern | Replace / augment with |
+|---|---|
+| Chat or agent loop with no memory between sessions | Add each exchange via `POST /api/ingest`, search before the model answers via `GET /api/memory` |
+| Full conversation history stuffed into the prompt | Retrieved context from `GET /api/memory` instead of replaying everything |
+| Homegrown embeddings pipeline (pgvector, pinecone, chroma) | `POST /api/ingest` + `GET /api/memory`, no pipeline to maintain |
+| RAG over files or docs sites | Ingest raw chunks, search with a limit to ground responses |
+| Multi-tenant SaaS serving many end users | One `GRAFZ_API_KEY` per end user; never share or cross-query keys |
+
+## Step 4 — Propose, then get approval before touching code
+
+Present findings as a numbered list: file + line range, the endpoint(s) involved, one line on why it is an improvement. Ask which to implement. Do not modify files until the user approves specific items.
+
+When implementing, use standard HTTP REST calls with the API key in the header:
+
+```javascript
+const res = await fetch("https://grafzz-flame.vercel.app/api/memory?q=hello", {
+  headers: { "Authorization": `Bearer ${process.env.GRAFZ_API_KEY}` }
+});
+const data = await res.json();
+```
+
+## Step 5 — Suggest uses tailored to this project
+
+Only if Step 3 found no application code: propose 3-5 concrete places in the user's stack where a memory layer would save effort, each tied to a specific endpoint from the table. Propose, do not build.
