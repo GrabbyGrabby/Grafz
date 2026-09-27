@@ -19,6 +19,7 @@ function cn(...inputs: ClassValue[]) {
 
 const navItems = [
   { name: "Overview", href: "/dashboard", icon: Home },
+  { name: "Import", href: "/dashboard/import", icon: Download },
   { name: "Playground", href: "/dashboard/playground", icon: Terminal },
   { name: "Documents", href: "/dashboard/documents", icon: FileText },
   { name: "Memory Graph", href: "/dashboard/graph", icon: Share2 },
@@ -31,7 +32,6 @@ const analyticsItems = [
 
 const dataItems = [
   { name: "Connectors", href: "/dashboard/connectors", icon: Plug },
-  { name: "Import", href: "/dashboard/import", icon: Download },
 ];
 
 const developerItems = [

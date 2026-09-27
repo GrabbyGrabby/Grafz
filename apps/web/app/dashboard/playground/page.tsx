@@ -122,14 +122,14 @@ export default function PlaygroundPage() {
           {/* Chat / Search Content */}
           <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar relative z-10">
             {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center -mt-16 pb-64 md:pb-40">
+              <div className="flex-1 flex flex-col items-center justify-center pb-20 mt-10">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }} 
                   animate={{ opacity: 1, scale: 1 }}
                   className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden group border border-border"
                 >
                   <div className="absolute inset-0 bg-primary/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-primary font-bold text-4xl leading-none z-10" style={{fontFamily: "monospace"}}>✱</div>
+                  <div className="text-primary font-bold text-4xl leading-none z-10 font-sans tracking-tighter">G</div>
                 </motion.div>
                 <h2 className="text-2xl font-bold text-main mb-8">See what Grafz can do</h2>
 
@@ -176,20 +176,7 @@ export default function PlaygroundPage() {
           {/* Input Area anchored to bottom */}
           <div className="absolute bottom-0 left-0 w-full p-4 md:p-6 bg-gradient-to-t from-bg via-bg via-70% to-transparent z-20">
             <div className="w-full max-w-3xl mx-auto">
-              {messages.length === 0 && (
-                <div className="flex flex-wrap gap-2 md:gap-3 mb-4 justify-center">
-                  {suggestions.map((s, i) => (
-                    <button 
-                      key={i} 
-                      onClick={() => setInput(s)}
-                      className="px-3 md:px-4 py-2 rounded-full border border-border bg-surface text-[11px] md:text-xs text-muted hover:text-main hover:bg-surface-hover transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap"
-                    >
-                      <User className="w-3 h-3" />
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
+              
 
               <form onSubmit={handleChatSubmit} className="w-full bg-[#0A0A0A]/95 backdrop-blur-3xl border border-white/10 rounded-[24px] overflow-hidden shadow-2xl transition-all duration-300 focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/5 flex relative group">
                 

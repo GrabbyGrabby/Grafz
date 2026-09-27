@@ -37,6 +37,7 @@ html {
 }
 
 body {
+  font-family: var(--font-poppins) !important;
   margin: 0;
   padding: 0;
   background-color: var(--color-bg);
