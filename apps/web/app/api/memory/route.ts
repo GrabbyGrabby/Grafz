@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
-    let userId;
+    let userId: string;
       try {
         const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "").trim();
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
             .limit(1);
             
           if (error || !data || data.length === 0) throw new Error("Invalid API Key");
-          userId = data[0].user_id;
+          userId = (data as any[])[0].user_id as string;
         } else {
           const privy = getPrivyClient();
           if (!token) {
@@ -79,8 +79,8 @@ export async function POST(req: NextRequest) {
             userId = verifiedClaims.userId;
           }
         }
-      } catch (e) {
-        return NextResponse.json({ error: "Unauthorized. Please log in or provide valid API key." }, { status: 401 });
+      } catch (e: any) {
+        return NextResponse.json({ error: "Unauthorized. Please log in or provide valid API key.", detail: e?.message }, { status: 401 });
       }
 
     const embedding = await getEmbedding(content);
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
   const query = searchParams.get("q");
 
   try {
-    let userId;
+    let userId: string;
       try {
         const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "").trim();
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
             .limit(1);
             
           if (error || !data || data.length === 0) throw new Error("Invalid API Key");
-          userId = data[0].user_id;
+          userId = (data as any[])[0].user_id as string;
         } else {
           const privy = getPrivyClient();
           if (!token) {
@@ -146,8 +146,8 @@ export async function GET(req: NextRequest) {
             userId = verifiedClaims.userId;
           }
         }
-      } catch (e) {
-        return NextResponse.json({ error: "Unauthorized. Please log in or provide valid API key." }, { status: 401 });
+      } catch (e: any) {
+        return NextResponse.json({ error: "Unauthorized. Please log in or provide valid API key.", detail: e?.message }, { status: 401 });
       }
 
     const supabase = getSupabase();
